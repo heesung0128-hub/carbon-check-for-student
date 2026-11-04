@@ -1,0 +1,296 @@
+// =============================================
+// 탄소발자국 계산기 - Google Apps Script
+// Code.gs (서버 사이드 완성본)
+// =============================================
+
+// 교사 대시보드 비밀번호는 코드에 적지 않고 스크립트 속성에 보관합니다.
+// Apps Script 편집기 > 프로젝트 설정 > 스크립트 속성 > 이름: TEACHER_PASSWORD
+
+const SHEET_NAME = '탄소발자국 결과';
+const TIME_ZONE = 'Asia/Seoul';
+
+const HEADERS = [
+  '제출시간', '이름', '학번', '가족수',
+  '쓰레기(kgCO₂)', '가스(kgCO₂)', '전기(kgCO₂)', '수도(kgCO₂)',
+  '교통(kgCO₂)', '커피·차(kgCO₂)', '식품(kgCO₂)', '전자기기(kgCO₂)',
+  '월간 총배출량(kgCO₂)', '탄소 등급', '캐릭터', '연간 총배출량(kgCO₂)', '상쇄 필요 나무(그루)',
+  '버전'
+];
+
+const NUMBER_FIELDS = [
+  'family', 'trash', 'gas', 'elec', 'water', 'transport', 'coffee', 'food', 'device',
+  'monthly', 'yearly', 'trees'
+];
+
+// 등급 기준과 캐릭터 정보는 이 표 한 곳에서만 관리합니다. (화면에도 그대로 전달됩니다)
+// max: 월간 배출량 상한. 마지막 등급은 상한이 없습니다.
+// 상한값은 실제 제출 65건의 분포(중앙값 341kg)를 기준으로 정했습니다. 중앙값이 3등급에 들어가게 맞춥니다.
+const TIERS = [
+  { max: 250, tier: '1등급', character: '🌱 새싹 꿀벌', msg: '진정한 지구 지킴이!', img: 'https://raw.githubusercontent.com/heesung0128-hub/carbon-check-for-student/main/images/tier1.jpg' },
+  { max: 300, tier: '2등급', character: '🦦 청정 수달', msg: '평균보다 낮아요, 1등급도 금방!', img: 'https://raw.githubusercontent.com/heesung0128-hub/carbon-check-for-student/main/images/tier2.jpg' },
+  { max: 400, tier: '3등급', character: '🐼 적당한 판다', msg: '딱 평균, 하나씩 줄여볼까요?', img: 'https://raw.githubusercontent.com/heesung0128-hub/carbon-check-for-student/main/images/tier3.jpg' },
+  { max: 600, tier: '4등급', character: '🐻‍❄️ 걱정 많은 북극곰', msg: '조금 높아요, 찾아봐요!', img: 'https://raw.githubusercontent.com/heesung0128-hub/carbon-check-for-student/main/images/tier4.jpg' },
+  { tier: '5등급', character: '🐧 땀 뻘뻘 펭귄', msg: '괜찮아요! 큰 항목부터 바꿔봐요', img: 'https://raw.githubusercontent.com/heesung0128-hub/carbon-check-for-student/main/images/tier5.jpg' }
+];
+
+// 탄소 배출량에 따른 등급 판정 함수
+function getTierInfo(monthlyEmission) {
+  const m = Number(monthlyEmission);
+  return TIERS.find(t => m <= t.max) || TIERS[TIERS.length - 1];
+}
+
+function renderPage_(file, title) {
+  const page = HtmlService.createTemplateFromFile(file);
+  page.shared = HtmlService.createHtmlOutputFromFile('shared').getContent();
+  page.tiersJson = JSON.stringify(TIERS);
+  // HTML 파일 안의 meta 태그는 Apps Script가 무시하므로 여기서 지정합니다.
+  return page.evaluate()
+    .setTitle(title)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function doGet(e) {
+  const mode = e && e.parameter && e.parameter.mode;
+
+  if (mode === 'teacher') {
+    return renderPage_('dashboard', '탄소발자국 - 교사 대시보드');
+  }
+
+  if (mode === 'simple') {
+    return renderPage_('simple', '탄소발자국 계산기 (간단버전)')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  return renderPage_('index', '탄소발자국 계산기')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// 학생 입력 문자열 정리: 길이를 제한하고, 시트에서 수식으로 처리되지 않게 합니다.
+function cleanText_(value, maxLength) {
+  const text = String(value === undefined || value === null ? '' : value).trim().slice(0, maxLength);
+  return /^[=+\-@]/.test(text) ? "'" + text : text;
+}
+
+function isValidNumber_(value) {
+  const num = Number(value);
+  return Number.isFinite(num) && num >= 0;
+}
+
+function getResultSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+    sheet.setFrozenRows(1);
+  }
+
+  if (sheet.getMaxColumns() < HEADERS.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), HEADERS.length - sheet.getMaxColumns());
+  }
+
+  // 새 시트이거나 예전 열 구성의 시트이면 머리글을 최신으로 맞춥니다.
+  if (sheet.getRange(1, HEADERS.length).getValue() !== HEADERS[HEADERS.length - 1]) {
+    sheet.getRange(1, 1, 1, HEADERS.length)
+      .setValues([HEADERS])
+      .setBackground('#2d6a1f')
+      .setFontColor('#ffffff')
+      .setFontWeight('bold');
+  }
+
+  return sheet;
+}
+
+function saveToSheet(data) {
+  // 학생들이 동시에 제출해도 시트 생성과 저장이 겹치지 않도록 순서대로 처리합니다.
+  const lock = LockService.getScriptLock();
+
+  try {
+    lock.waitLock(30000);
+
+    const name = cleanText_(data.name, 30);
+    const studentId = cleanText_(data.studentId, 20);
+    if (!name || !studentId || NUMBER_FIELDS.some(key => !isValidNumber_(data[key]))) {
+      return { success: false, error: '입력값이 올바르지 않습니다.' };
+    }
+
+    const sheet = getResultSheet_();
+
+    // 등급 정보 계산
+    const tierInfo = getTierInfo(data.monthly);
+
+    sheet.appendRow([
+      new Date(),
+      name,
+      studentId,
+      data.family,
+      Number(data.trash).toFixed(2),
+      Number(data.gas).toFixed(2),
+      Number(data.elec).toFixed(2),
+      Number(data.water).toFixed(2),
+      Number(data.transport).toFixed(2),
+      Number(data.coffee).toFixed(2),
+      Number(data.food).toFixed(2),
+      Number(data.device).toFixed(2),
+      data.monthly,
+      tierInfo.tier,       // 스프레드시트에 저장
+      tierInfo.character,  // 스프레드시트에 저장
+      data.yearly,
+      data.trees,
+      cleanText_(data.version, 10)
+    ]);
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// =============================================
+// 교사 대시보드용 함수
+// =============================================
+
+// 비밀번호가 맞으면 빈 문자열, 틀리면 오류 메시지를 돌려줍니다.
+function checkPassword_(pw) {
+  const saved = PropertiesService.getScriptProperties().getProperty('TEACHER_PASSWORD');
+  if (!saved) {
+    return '스크립트 속성에 TEACHER_PASSWORD가 설정되지 않았습니다.';
+  }
+
+  return pw === saved ? '' : '비밀번호가 틀렸습니다.';
+}
+
+function verifyTeacherPassword(pw) {
+  const error = checkPassword_(pw);
+  return error ? { success: false, error: error } : { success: true };
+}
+
+// 시트의 제출시간을 Date로 바꿉니다. 예전 행은 '2026. 11. 2. 오후 7:33:51' 형식의 문자열입니다.
+function toDate_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]') return value;
+
+  const m = String(value).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})\D+(오전|오후)\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) {
+    const hour = Number(m[5]) % 12 + (m[4] === '오후' ? 12 : 0);
+    return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), hour - 9, Number(m[6]), Number(m[7] || 0)));
+  }
+
+  const parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function toResult_(row) {
+  // 등급 열이 추가되기 전(15열) 행은 연간·나무 값이 14·15번째 열에 있습니다.
+  const isOldRow = row[15] === '' || row[15] === undefined;
+  const date = toDate_(row[0]);
+  const monthly = Number(row[12]);
+  const tierInfo = getTierInfo(monthly);
+
+  return {
+    time: date ? Utilities.formatDate(date, TIME_ZONE, 'yyyy-MM-dd HH:mm:ss') : String(row[0]),
+    timeMs: date ? date.getTime() : 0,
+    name: String(row[1]),
+    studentId: String(row[2]),
+    family: Number(row[3]),
+    trash: Number(row[4]),
+    gas: Number(row[5]),
+    elec: Number(row[6]),
+    water: Number(row[7]),
+    transport: Number(row[8]),
+    coffee: Number(row[9]),
+    food: Number(row[10]),
+    device: Number(row[11]),
+    monthly: monthly,
+    tier: tierInfo.tier,
+    character: tierInfo.character,
+    yearly: Number(isOldRow ? row[13] : row[15]),
+    trees: Number(isOldRow ? row[14] : row[16]),
+    version: String(row[17] || '')
+  };
+}
+
+function getAllResults(pw) {
+  const pwError = checkPassword_(pw);
+  if (pwError) {
+    return { success: false, error: pwError };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAME);
+
+    if (!sheet || sheet.getLastRow() <= 1) {
+      return { success: true, data: [], stats: null };
+    }
+
+    const columns = Math.min(HEADERS.length, sheet.getMaxColumns());
+    const range = sheet.getRange(2, 1, sheet.getLastRow() - 1, columns);
+    const values = range.getValues();
+
+    // 같은 학번이 다시 제출하면 가장 최근 결과만 집계합니다. (시트에는 모두 보관)
+    const latest = new Map();
+    values.forEach(row => {
+      const item = toResult_(row);
+      const prev = latest.get(item.studentId);
+      if (!prev || item.timeMs >= prev.timeMs) latest.set(item.studentId, item);
+    });
+    const data = Array.from(latest.values());
+
+    const n = data.length;
+    const stats = {
+      count: n,
+      submissions: values.length,
+      avgMonthly: Math.round(data.reduce((s, d) => s + d.monthly, 0) / n),
+      avgYearly: Math.round(data.reduce((s, d) => s + d.yearly, 0) / n),
+      avgTrees: Math.round(data.reduce((s, d) => s + d.trees, 0) / n),
+      maxMonthly: Math.max(...data.map(d => d.monthly)),
+      minMonthly: Math.min(...data.map(d => d.monthly)),
+      categoryAvg: {
+        '쓰레기': data.reduce((s, d) => s + d.trash, 0) / n,
+        '가스': data.reduce((s, d) => s + d.gas, 0) / n,
+        '전기': data.reduce((s, d) => s + d.elec, 0) / n,
+        '수도': data.reduce((s, d) => s + d.water, 0) / n,
+        '교통': data.reduce((s, d) => s + d.transport, 0) / n,
+        '커피·차': data.reduce((s, d) => s + d.coffee, 0) / n,
+        '식품': data.reduce((s, d) => s + d.food, 0) / n,
+        '전자기기': data.reduce((s, d) => s + d.device, 0) / n
+      }
+    };
+
+    return { success: true, data: data, stats: stats };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+function clearAllResults(pw) {
+  const pwError = checkPassword_(pw);
+  if (pwError) {
+    return { success: false, error: pwError };
+  }
+
+  const lock = LockService.getScriptLock();
+
+  try {
+    lock.waitLock(30000);
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAME);
+    let backupName = '';
+
+    if (sheet && sheet.getLastRow() > 1) {
+      // 실수로 지워도 복구할 수 있도록 삭제 전에 백업 시트를 만듭니다.
+      backupName = '백업 ' + Utilities.formatDate(new Date(), TIME_ZONE, 'yyyy-MM-dd HH:mm:ss');
+      sheet.copyTo(ss).setName(backupName);
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+    }
+
+    return { success: true, backup: backupName };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  } finally {
+    lock.releaseLock();
+  }
+}

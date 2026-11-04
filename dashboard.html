@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>교사 대시보드 - 탄소발자국</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green-dark: #2d6a1f;
+      --green-mid: #3b8c28;
+      --green-light: #eaf3de;
+      --green-border: #a8d58a;
+      --text-main: #1a1a1a;
+      --text-sub: #5a5a5a;
+      --text-hint: #909090;
+      --bg: #f4f6f1;
+      --surface: #ffffff;
+      --border: #e0e0d8;
+      --danger: #c0392b;
+      --warning: #e67e22;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: var(--green-dark);
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-title h1 { font-size: 17px; font-weight: 600; }
+    .header-title .icon { font-size: 22px; }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-header {
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-header:hover { background: rgba(255,255,255,0.25); }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* 로그인 화면 */
+    .login-card {
+      max-width: 380px;
+      margin: 80px auto;
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 32px 28px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .login-icon { text-align: center; font-size: 38px; margin-bottom: 8px; }
+    .login-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+    .login-desc { font-size: 13px; color: var(--text-sub); text-align: center; margin-bottom: 24px; line-height: 1.6; }
+
+    .login-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      margin-bottom: 12px;
+    }
+
+    .login-input:focus {
+      outline: none;
+      border-color: var(--green-mid);
+      box-shadow: 0 0 0 3px rgba(59,140,40,0.12);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--green-dark);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .login-btn:hover { background: var(--green-mid); }
+    .login-error { color: var(--danger); font-size: 13px; text-align: center; margin-top: 10px; min-height: 18px; }
+
+    /* 대시보드 콘텐츠 */
+    .dashboard { display: none; }
+    .dashboard.active { display: block; }
+
+    .empty-state {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 48px 24px;
+      text-align: center;
+    }
+
+    .empty-icon { font-size: 42px; margin-bottom: 12px; }
+    .empty-title { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+    .empty-desc { font-size: 13px; color: var(--text-sub); }
+
+    /* 통계 카드 */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+    }
+
+    .stat-label { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; }
+    .stat-value { font-size: 26px; font-weight: 700; color: var(--text-main); line-height: 1.2; }
+    .stat-unit { font-size: 12px; color: var(--text-hint); margin-top: 2px; }
+
+    .stat-card.highlight { background: var(--green-light); border-color: var(--green-border); }
+    .stat-card.highlight .stat-value { color: var(--green-dark); }
+
+    /* 차트 영역 */
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .chart-row { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-sub { font-size: 12px; color: var(--text-hint); font-weight: 400; }
+
+    .chart-wrap { position: relative; height: 280px; }
+
+    /* 테이블 */
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: #f7f9f5;
+      font-weight: 600;
+      color: var(--text-sub);
+      font-size: 12px;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+    }
+
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background: var(--green-light); }
+    th.sortable::after { content: ' ⇅'; color: var(--text-hint); font-size: 10px; }
+    th.sort-asc::after { content: ' ↑'; color: var(--green-mid); }
+    th.sort-desc::after { content: ' ↓'; color: var(--green-mid); }
+
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.high-emit td.num.total { color: var(--danger); font-weight: 600; }
+    tr.low-emit td.num.total { color: var(--green-mid); font-weight: 600; }
+
+    tbody tr:hover { background: #fafdf6; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-high { background: #fdebe7; color: var(--danger); }
+    .badge-mid { background: #fdf2e3; color: var(--warning); }
+    .badge-low { background: var(--green-light); color: var(--green-dark); }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 200px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .search-input:focus { outline: none; border-color: var(--green-mid); }
+
+    .btn {
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-main);
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .btn:hover { background: #f0f0f0; }
+    .btn-danger { color: var(--danger); border-color: #f5cac3; }
+    .btn-danger:hover { background: #fdebe7; }
+    .btn-primary { background: var(--green-dark); color: white; border-color: var(--green-dark); }
+    .btn-primary:hover { background: var(--green-mid); }
+
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-sub);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- 로그인 화면 -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-icon">🔒</div>
+    <div class="login-title">교사용 대시보드</div>
+    <div class="login-desc">학생들의 탄소발자국 데이터를<br>확인하려면 비밀번호를 입력하세요.</div>
+    <input type="password" class="login-input" id="pwInput" placeholder="비밀번호" onkeypress="if(event.key==='Enter') login()" />
+    <button class="login-btn" onclick="login()">접속하기</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- 대시보드 -->
+<div class="dashboard" id="dashboard">
+  <div class="header">
+    <div class="header-title">
+      <span class="icon">🌱</span>
+      <h1>탄소발자국 교사 대시보드</h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn-header" onclick="refresh()">↻ 새로고침</button>
+      <button class="btn-header" onclick="logout()">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="loadingMsg" class="loading">데이터 불러오는 중...</div>
+
+    <div id="contentArea" style="display:none;">
+      <!-- 빈 상태 -->
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">아직 제출된 데이터가 없어요</div>
+        <div class="empty-desc">학생들이 계산기를 완료하면 이곳에 표시됩니다.</div>
+      </div>
+
+      <!-- 데이터 있을 때 -->
+      <div id="dataArea" style="display:none;">
+        <!-- 통계 카드 -->
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <!-- 차트 -->
+        <div class="panel-sub" id="chartNotice" style="display:none; margin-bottom:12px;">차트 라이브러리를 불러오지 못해 차트를 숨겼어요. 학교망에서 jsdelivr.net이 차단됐는지 확인해주세요.</div>
+        <div class="chart-row" id="chartRow">
+          <div class="panel">
+            <div class="panel-title">
+              항목별 평균 배출량
+              <span class="panel-sub">반 평균 (kg CO₂/월)</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="categoryChart"></canvas>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">
+              학생별 월간 배출량
+              <span class="panel-sub">상위 10명</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="studentChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 학생 목록 -->
+        <div class="panel">
+          <div class="panel-title">
+            제출 현황
+            <span class="panel-sub" id="submitCount"></span>
+          </div>
+          <div class="toolbar">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 이름 또는 학번으로 검색" oninput="renderTable()" />
+            <button class="btn" onclick="exportCSV()">📥 CSV 내려받기</button>
+            <button class="btn btn-danger" onclick="clearData()">데이터 초기화</button>
+          </div>
+          <div class="table-wrap">
+            <table id="dataTable">
+              <thead>
+                <tr>
+                  <th class="sortable" onclick="sortBy('time')">제출시간</th>
+                  <th class="sortable" onclick="sortBy('studentId')">학번</th>
+                  <th class="sortable" onclick="sortBy('name')">이름</th>
+                  <th class="sortable" onclick="sortBy('monthly')">월간 (kg)</th>
+                  <th class="sortable" onclick="sortBy('yearly')">연간 (kg)</th>
+                  <th class="sortable" onclick="sortBy('trees')">나무</th>
+                  <th class="sortable" onclick="sortBy('tier')">탄소 등급</th>
+                  <th class="sortable" onclick="sortBy('version')">버전</th>
+                  <th>학급 비교</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentPw = '';
+let allData = [];
+let currentStats = null;
+let sortField = 'time';
+let sortDir = 'desc';
+let categoryChart = null;
+let studentChart = null;
+
+// 로그인
+function login() {
+  const pw = document.getElementById('pwInput').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+
+  if (!pw) {
+    errEl.textContent = '비밀번호를 입력해주세요';
+    return;
+  }
+
+  if (typeof google !== 'undefined' && google.script) {
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res.success) {
+          currentPw = pw;
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('dashboard').classList.add('active');
+          loadData();
+        } else {
+          errEl.textContent = res.error;
+        }
+      })
+      .withFailureHandler(err => { errEl.textContent = '오류: ' + err; })
+      .verifyTeacherPassword(pw);
+  } else {
+    // 로컬 미리보기용
+    currentPw = pw;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboard').classList.add('active');
+    showDemo();
+  }
+}
+
+function logout() {
+  currentPw = '';
+  document.getElementById('pwInput').value = '';
+  document.getElementById('dashboard').classList.remove('active');
+  document.getElementById('loginScreen').style.display = 'block';
+}
+
+function refresh() { loadData(); }
+
+function loadData() {
+  document.getElementById('loadingMsg').style.display = 'block';
+  document.getElementById('contentArea').style.display = 'none';
+
+  if (typeof google !== 'undefined' && google.script) {
+    google.script.run
+      .withSuccessHandler(res => {
+        document.getElementById('loadingMsg').style.display = 'none';
+        document.getElementById('contentArea').style.display = 'block';
+
+        if (!res.success) {
+          alert('데이터 조회 실패: ' + res.error);
+          return;
+        }
+
+        allData = res.data;
+        currentStats = res.stats;
+        renderAll();
+      })
+      .withFailureHandler(err => {
+        document.getElementById('loadingMsg').textContent = '오류: ' + err;
+      })
+      .getAllResults(currentPw);
+  } else {
+    showDemo();
+  }
+}
+
+function showDemo() {
+  // 로컬 미리보기용 더미 데이터 (등급 및 캐릭터 정보 포함)
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('contentArea').style.display = 'block';
+  allData = [
+    {time:'2026-04-29 14:30', name:'홍길동', studentId:'20301', family:4, trash:25.3, gas:42.1, elec:38.5, water:8.2, transport:65.4, coffee:8.4, food:120.5, device:32.1, monthly:340, tier:'2등급', character:'🦦 청정 수달', yearly:4080, trees:449, version:'기본'},
+    {time:'2026-04-29 14:32', name:'김철수', studentId:'20302', family:3, trash:18.7, gas:35.2, elec:28.9, water:6.5, transport:42.3, coffee:0, food:95.4, device:28.7, monthly:256, tier:'1등급', character:'🌱 새싹 꿀벌', yearly:3072, trees:338, version:'간단'},
+    {time:'2026-04-29 14:35', name:'이영희', studentId:'20303', family:4, trash:30.1, gas:48.7, elec:45.2, water:9.8, transport:88.6, coffee:16.8, food:150.2, device:38.5, monthly:428, tier:'3등급', character:'🐼 적당한 판다', yearly:5136, trees:564, version:'기본'}
+  ];
+  currentStats = {
+    count: 3, submissions: 3,
+    avgMonthly: 341, avgYearly: 4096, avgTrees: 450,
+    maxMonthly: 428, minMonthly: 256,
+    categoryAvg: { 쓰레기:24.7, 가스:42.0, 전기:37.5, 수도:8.2, 교통:65.4, '커피·차':8.4, 식품:122.0, 전자기기:33.1 }
+  };
+  renderAll();
+}
+
+function renderAll() {
+  if (allData.length === 0) {
+    document.getElementById('emptyState').style.display = 'block';
+    document.getElementById('dataArea').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('dataArea').style.display = 'block';
+
+  renderStats();
+  // 차트 라이브러리를 못 불러와도 학생 목록은 볼 수 있어야 합니다.
+  const hasChart = typeof Chart !== 'undefined';
+  document.getElementById('chartRow').style.display = hasChart ? '' : 'none';
+  document.getElementById('chartNotice').style.display = hasChart ? 'none' : 'block';
+  if (hasChart) {
+    renderCategoryChart();
+    renderStudentChart();
+  }
+  renderTable();
+}
+
+function renderStats() {
+  const s = currentStats;
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card highlight">
+      <div class="stat-label">제출 인원</div>
+      <div class="stat-value">${s.count}</div>
+      <div class="stat-unit">명 (총 ${s.submissions}건 제출, 학번별 최신 결과만 집계)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">월간 평균 배출량</div>
+      <div class="stat-value">${s.avgMonthly.toLocaleString()}</div>
+      <div class="stat-unit">kg CO₂</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">연간 평균 배출량</div>
+      <div class="stat-value">${s.avgYearly.toLocaleString()}</div>
+      <div class="stat-unit">kg CO₂</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">평균 필요 나무</div>
+      <div class="stat-value">${s.avgTrees.toLocaleString()}</div>
+      <div class="stat-unit">그루/년</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">최대 / 최소</div>
+      <div class="stat-value" style="font-size:18px;">${s.maxMonthly} / ${s.minMonthly}</div>
+      <div class="stat-unit">kg CO₂/월</div>
+    </div>
+  `;
+}
+
+function renderCategoryChart() {
+  const ctx = document.getElementById('categoryChart').getContext('2d');
+  if (categoryChart) categoryChart.destroy();
+
+  const cats = Object.keys(currentStats.categoryAvg);
+  const vals = cats.map(c => Math.round(currentStats.categoryAvg[c] * 10) / 10);
+
+  categoryChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: cats,
+      datasets: [{
+        data: vals,
+        backgroundColor: '#3b8c28',
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#e8e8e8' }, ticks: { font: { size: 11 } } },
+        y: { grid: { display: false }, ticks: { font: { size: 12 } } }
+      }
+    }
+  });
+}
+
+function renderStudentChart() {
+  const ctx = document.getElementById('studentChart').getContext('2d');
+  if (studentChart) studentChart.destroy();
+
+  const top10 = [...allData].sort((a,b) => b.monthly - a.monthly).slice(0, 10);
+  const labels = top10.map(d => d.name);
+  const vals = top10.map(d => d.monthly);
+  const avg = currentStats.avgMonthly;
+
+  studentChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '월간 배출량',
+        data: vals,
+        backgroundColor: vals.map(v => v > avg * 1.2 ? '#c0392b' : v < avg * 0.8 ? '#3b8c28' : '#e67e22'),
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: () => `반 평균: ${avg} kg`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: { grid: { color: '#e8e8e8' }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function sortBy(field) {
+  if (sortField === field) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortField = field;
+    sortDir = (field === 'name' || field === 'studentId' || field === 'time') ? 'asc' : 'desc';
+  }
+  renderTable();
+}
+
+// 학생이 입력한 값은 화면에 넣기 전에 반드시 변환해 HTML로 실행되지 않게 합니다.
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
+  ));
+}
+
+function renderTable() {
+  const search = document.getElementById('searchInput').value.toLowerCase().trim();
+  let data = allData.filter(d =>
+    !search || d.name.toLowerCase().includes(search) || String(d.studentId).toLowerCase().includes(search)
+  );
+
+  data.sort((a, b) => {
+    let va = a[sortField], vb = b[sortField];
+    if (typeof va === 'string') {
+      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    }
+    return sortDir === 'asc' ? va - vb : vb - va;
+  });
+
+  // 헤더 정렬 표시
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+  });
+  const ths = document.querySelectorAll('th.sortable');
+  const fieldMap = ['time','studentId','name','monthly','yearly','trees','tier','version'];
+  const idx = fieldMap.indexOf(sortField);
+  if (idx >= 0 && ths[idx]) ths[idx].classList.add('sort-' + sortDir);
+
+  const avg = currentStats.avgMonthly;
+  document.getElementById('submitCount').textContent = `총 ${data.length}명`;
+
+  document.getElementById('tableBody').innerHTML = data.map(d => {
+    const ratio = d.monthly / avg;
+    let badge = '<span class="badge badge-mid">평균</span>';
+    let rowClass = '';
+    if (ratio > 1.2) { badge = '<span class="badge badge-high">높음</span>'; rowClass = 'high-emit'; }
+    else if (ratio < 0.8) { badge = '<span class="badge badge-low">낮음</span>'; rowClass = 'low-emit'; }
+
+    return `
+      <tr class="${rowClass}">
+        <td style="font-size:12px; color:var(--text-sub);">${escapeHtml(d.time)}</td>
+        <td>${escapeHtml(d.studentId)}</td>
+        <td style="font-weight:500;">${escapeHtml(d.name)}</td>
+        <td class="num total">${d.monthly.toLocaleString()}</td>
+        <td class="num">${d.yearly.toLocaleString()}</td>
+        <td class="num">${d.trees.toLocaleString()}</td>
+        <td style="font-weight:500; color:var(--green-dark);">${escapeHtml(d.tier || '-')} (${escapeHtml(d.character || '-')})</td>
+        <td>${escapeHtml(d.version || '-')}</td>
+        <td>${badge}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function exportCSV() {
+  const headers = ['제출시간','학번','이름','가족수','쓰레기(kgCO₂)','가스(kgCO₂)','전기(kgCO₂)','수도(kgCO₂)','교통(kgCO₂)','커피·차(kgCO₂)','식품(kgCO₂)','전자기기(kgCO₂)','월간 총배출량(kgCO₂)','탄소 등급','캐릭터','연간 총배출량(kgCO₂)','상쇄 필요 나무(그루)','버전'];
+  const rows = allData.map(d => [
+    d.time,
+    d.studentId,
+    d.name,
+    d.family,
+    d.trash,
+    d.gas,
+    d.elec,
+    d.water,
+    d.transport,
+    d.coffee,
+    d.food,
+    d.device,
+    d.monthly,
+    d.tier,
+    d.character,
+    d.yearly,
+    d.trees,
+    d.version
+  ]);
+  let csv = '\uFEFF' + headers.join(',') + '\n';
+  csv += rows.map(r => r.map(val => {
+    let str = String(val === undefined || val === null ? '' : val);
+    // 엑셀에서 수식으로 실행되지 않도록 문자열 앞에 작은따옴표를 붙입니다.
+    if (typeof val === 'string' && /^[=+\-@\t\r]/.test(str)) str = "'" + str;
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  }).join(',')).join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '탄소발자국_결과_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function clearData() {
+  if (!confirm('정말 모든 학생 데이터를 삭제하시겠어요?\n삭제 전 데이터는 스프레드시트의 백업 시트에 복사돼요.')) return;
+  if (!confirm('한 번 더 확인해요. 정말 삭제할까요?')) return;
+
+  if (typeof google !== 'undefined' && google.script) {
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res.success) {
+          alert(res.backup ? '삭제 완료 (백업 시트: ' + res.backup + ')' : '삭제 완료');
+          loadData();
+        } else {
+          alert('삭제 실패: ' + res.error);
+        }
+      })
+      .withFailureHandler(err => { alert('삭제 실패: ' + err); })
+      .clearAllResults(currentPw);
+  } else {
+    alert('(미리보기 모드 - 실제 삭제 안 됨)');
+  }
+}
+</script>
+</body>
+</html>

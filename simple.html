@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>탄소발자국 계산기 (간단버전)</title>
+  <script>const TIERS = <?!= tiersJson ?>;</script>
+  <?!= shared ?>
+</head>
+<body>
+
+<div class="app-header">
+  <span class="logo">🌱</span>
+  <h1>나의 탄소발자국 계산기</h1>
+  <span class="badge">간단버전</span>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-meta">
+    <span id="stepLabel">1 / 6단계</span>
+    <span id="stepName">시작하기</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progFill" style="width:16%"></div></div>
+</div>
+
+<div class="container">
+
+  <div class="step active" id="s1">
+    <div class="step-title">안녕하세요! 👋</div>
+    <div class="step-desc">간단 탄소발자국 계산을 시작해요.<br>6단계면 끝나요!</div>
+
+    <div class="field">
+      <label class="field-label">학번</label>
+      <input type="text" id="studentId" placeholder="예: 20301" inputmode="numeric" />
+    </div>
+    <div class="field">
+      <label class="field-label">이름</label>
+      <input type="text" id="name" placeholder="예: 홍길동" />
+    </div>
+    <div class="field">
+      <label class="field-label">함께 사는 가족 수</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('family', -1, 1)">−</button>
+          <input type="number" id="family" value="4" min="1" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('family', 1, 1)">+</button>
+        </div>
+        <span class="unit">명</span>
+      </div>
+      <div class="field-hint">자취 중이라면 1명으로 입력하세요</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goNext(1)">시작하기 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s2">
+    <div class="step-title">이동 습관 🚗</div>
+    <div class="step-desc">등하교와 주말 이동 방법을 알려주세요.<br>거리 대신 <strong>이동 시간</strong>으로 간편하게 입력해요.</div>
+
+    <div class="section-label">등하교</div>
+    <div class="field">
+      <label class="field-label">주로 어떻게 등하교하나요?</label>
+      <div class="radio-group" id="commute-radio">
+        <div class="radio-card" onclick="selectCommute(this, 'walk')"><div class="radio-dot"></div><span class="radio-text">도보 / 자전거</span><span class="radio-sub">0 CO₂</span></div>
+        <div class="radio-card" onclick="selectCommute(this, 'bus')"><div class="radio-dot"></div><span class="radio-text">버스</span><span class="radio-sub">탄소 보통</span></div>
+        <div class="radio-card" onclick="selectCommute(this, 'subway')"><div class="radio-dot"></div><span class="radio-text">지하철</span><span class="radio-sub">탄소 적음</span></div>
+        <div class="radio-card" onclick="selectCommute(this, 'car')"><div class="radio-dot"></div><span class="radio-text">자가용</span><span class="radio-sub">탄소 많음</span></div>
+      </div>
+    </div>
+
+    <div class="field" id="commute-time-field" style="display:none">
+      <label class="field-label">집에서 학교까지 편도 몇 분 걸리나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('commute_min', -5, 0)">−</button>
+          <input type="number" id="commute_min" placeholder="20" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('commute_min', 5, 0)">+</button>
+        </div>
+        <span class="unit">분 (편도)</span>
+      </div>
+      <div class="field-hint">왕복 20일/월 기준으로 자동 계산돼요</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">주말·외출</div>
+    <div class="field">
+      <label class="field-label">주말에 주로 어떻게 이동하나요?</label>
+      <div class="radio-group" id="weekend-radio">
+        <div class="radio-card" onclick="selectWeekend(this, 'walk')"><div class="radio-dot"></div><span class="radio-text">도보 / 자전거</span><span class="radio-sub">0 CO₂</span></div>
+        <div class="radio-card" onclick="selectWeekend(this, 'bus')"><div class="radio-dot"></div><span class="radio-text">버스 / 지하철</span><span class="radio-sub">탄소 보통</span></div>
+        <div class="radio-card" onclick="selectWeekend(this, 'car')"><div class="radio-dot"></div><span class="radio-text">자가용</span><span class="radio-sub">탄소 많음</span></div>
+      </div>
+    </div>
+
+    <div class="field" id="weekend-time-field" style="display:none">
+      <label class="field-label">주말 하루 평균 이동 시간은?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('weekend_min', -5, 0)">−</button>
+          <input type="number" id="weekend_min" placeholder="40" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('weekend_min', 5, 0)">+</button>
+        </div>
+        <span class="unit">분 / 일</span>
+      </div>
+      <div class="field-hint">월 8일(주말) 기준으로 자동 계산돼요</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(2)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(2)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s3">
+    <div class="step-title">식품 소비 🍖</div>
+    <div class="notice-box">
+      🍱 <strong>학교 점심 급식(평일 5회)은 자동으로 포함</strong>돼요!<br>
+      여기에는 <strong>평일 저녁 + 주말 점심·저녁</strong>에 먹는 음식만 입력하세요.<br>
+      (일주일 기준 약 9끼 · 아침은 제외)
+    </div>
+
+    <div class="field">
+      <label class="field-label">🥩 육류 (소·돼지·닭고기 전체)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('meat', -1, 0)">−</button>
+          <input type="number" id="meat" placeholder="5" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('meat', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 주</span>
+      </div>
+      <div class="field-hint">평균 1회 120g, 배출계수 약 12 kgCO₂/kg</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">🐟 생선·해산물</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('fish', -1, 0)">−</button>
+          <input type="number" id="fish" placeholder="2" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('fish', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 주</span>
+      </div>
+      <div class="field-hint">1회 100g, 6 kgCO₂/kg</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">🥛 우유·유제품</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('milk', -1, 0)">−</button>
+          <input type="number" id="milk" placeholder="7" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('milk', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 주</span>
+      </div>
+      <div class="field-hint">우유 1잔 150g, 3 kgCO₂/kg</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">🥦 채소·과일 위주 식사</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('veg', -1, 0)">−</button>
+          <input type="number" id="veg" placeholder="6" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('veg', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 주</span>
+      </div>
+      <div class="field-hint">고기 없이 채소·과일 위주로 먹은 끼니. 1회 150g, 2 kgCO₂/kg</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(3)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(3)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s4">
+    <div class="step-title">전기 & 디지털 ⚡</div>
+    <div class="step-desc">전기 사용과 디지털 활동을 알려주세요.</div>
+
+    <div class="section-label">냉방</div>
+    <div class="field">
+      <label class="field-label">여름철 하루 평균 에어컨을 몇 시간 켜나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('aircon_hr', -1, 0)">−</button>
+          <input type="number" id="aircon_hr" placeholder="6" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('aircon_hr', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">연간 3개월(6~8월) 기준으로 자동 환산</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">디지털 활동 🎬</div>
+    <div class="field">
+      <label class="field-label">📺 하루 평균 영상 시청 시간</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('streaming_hr', -1, 0)">−</button>
+          <input type="number" id="streaming_hr" placeholder="2" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('streaming_hr', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">유튜브·넷플릭스·릴스·틱톡 등 모두 합산</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">🎮 하루 평균 게임 시간</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('gaming_hr', -1, 0)">−</button>
+          <input type="number" id="gaming_hr" placeholder="1" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('gaming_hr', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">PC·콘솔·모바일 게임 합산</div>
+    </div>
+
+    <div class="tip-box">💡 집 조명·냉장고·학교 전기 사용은 한국 학생 평균값으로 자동 포함돼요.</div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(4)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(4)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s5">
+    <div class="step-title">물 & 난방 💧🔥</div>
+    <div class="step-desc">샤워와 난방 습관을 알려주세요.<br>샤워는 물과 가스 계산에 모두 사용돼요.</div>
+
+    <div class="section-label">샤워</div>
+    <div class="field">
+      <label class="field-label">하루 평균 샤워를 몇 분 하나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('shower_min', -5, 0)">−</button>
+          <input type="number" id="shower_min" placeholder="10" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('shower_min', 5, 0)">+</button>
+        </div>
+        <span class="unit">분 / 일</span>
+      </div>
+      <div class="field-hint">온수 사용 시 가스+물 함께 소비돼요</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">난방</div>
+    <div class="field">
+      <label class="field-label">겨울철 하루 평균 보일러를 몇 시간 켜나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('boiler_hr', -1, 0)">−</button>
+          <input type="number" id="boiler_hr" placeholder="4" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('boiler_hr', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">연간 4개월(12~3월) 기준으로 자동 환산</div>
+    </div>
+
+    <div class="tip-box">💡 요리·설거지·화장실·양치 등 나머지 물 사용은 평균값으로 자동 포함돼요.</div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(5)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(5)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s6">
+    <div class="step-title">쓰레기 & 소비 🗑️</div>
+    <div class="step-desc">마지막 단계예요! 거의 다 왔어요.</div>
+
+    <div class="section-label">쓰레기</div>
+    <div class="field">
+      <label class="field-label">일주일에 쓰레기 봉투를 몇 개 버리나요? (가족 전체)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('bag_week', -0.5, 0)">−</button>
+          <input type="number" id="bag_week" placeholder="2" min="0" step="0.5" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('bag_week', 0.5, 0)">+</button>
+        </div>
+        <span class="unit">개 / 주</span>
+      </div>
+      <div class="field-hint">20L 봉투 기준</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">우리집 음식물 쓰레기 양은?</label>
+      <div class="radio-group" id="food-waste-radio">
+        <div class="radio-card" onclick="selectFoodWaste(this, 'low')"><div class="radio-dot"></div><span class="radio-text">적게 (남기지 않음)</span></div>
+        <div class="radio-card" onclick="selectFoodWaste(this, 'mid')"><div class="radio-dot"></div><span class="radio-text">보통 (한국 평균)</span></div>
+        <div class="radio-card" onclick="selectFoodWaste(this, 'high')"><div class="radio-dot"></div><span class="radio-text">많이 (자주 남김)</span></div>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">의류 소비 (한 달 구매)</div>
+    <div class="field">
+      <label class="field-label">👕 상의 (티셔츠·셔츠·맨투맨 등)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_top', -1, 0)">−</button>
+          <input type="number" id="cloth_top" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_top', 1, 0)">+</button>
+        </div>
+        <span class="unit">벌 / 월</span>
+      </div>
+      <div class="field-hint">1벌 약 7 kg CO₂</div>
+    </div>
+    <div class="field">
+      <label class="field-label">👖 하의 (청바지·바지·치마 등)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_bottom', -1, 0)">−</button>
+          <input type="number" id="cloth_bottom" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_bottom', 1, 0)">+</button>
+        </div>
+        <span class="unit">벌 / 월</span>
+      </div>
+      <div class="field-hint">청바지는 특히 높아요. 1벌 약 25 kg CO₂</div>
+    </div>
+    <div class="field">
+      <label class="field-label">👟 신발·운동화</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_shoes', -1, 0)">−</button>
+          <input type="number" id="cloth_shoes" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_shoes', 1, 0)">+</button>
+        </div>
+        <span class="unit">켤레 / 월</span>
+      </div>
+      <div class="field-hint">1켤레 약 12.5 kg CO₂</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(6)">← 이전</button>
+      <button class="btn btn-primary" onclick="calcAndShow()">결과 보기 🌱</button>
+    </div>
+  </div>
+
+  <div class="step" id="s7">
+
+    <div id="character-box" class="char-card" style="display: none;">
+      <h3>나의 탄소 등급</h3>
+      <h2 id="char-tier-name">등급 캐릭터 이름</h2>
+      <img id="char-image" src="" alt="탄소 캐릭터">
+      <br>
+      <p id="char-message">"메시지 톤"</p>
+    </div>
+    <div class="result-hero">
+      <div class="name" id="res-name"></div>
+      <div class="month-val" id="res-month">-</div>
+      <div class="month-unit">kg CO₂ / 월</div>
+    </div>
+
+    <div class="result-cards">
+      <div class="result-card">
+        <div class="label">연간 배출량</div>
+        <div class="value" id="res-year">-</div>
+        <div class="unit2">kg CO₂/년</div>
+      </div>
+      <div class="result-card">
+        <div class="label">상쇄 필요 나무</div>
+        <div class="value" id="res-tree">-</div>
+        <div class="unit2">그루/년</div>
+      </div>
+    </div>
+
+    <div class="tree-info">
+      <span class="tree-icon">🌲</span>
+      <div class="tree-text">
+        <strong>기준 수종: 30년생 중부지방 소나무</strong><br>
+        한 그루가 1년간 흡수하는 CO₂는 약 <strong>9.1kg</strong>이에요.
+        <div style="font-size:11px; color:var(--text-hint); margin-top:6px;">출처: 국립산림과학원 표준 탄소흡수량</div>
+      </div>
+    </div>
+
+    <div class="breakdown-title">항목별 배출량</div>
+    <div id="breakdown"></div>
+
+    <div class="save-status saving" id="saveStatus">결과를 저장하는 중...</div>
+
+    <div class="btn-row" style="margin-top:16px;">
+      <button class="btn" onclick="resetCalc()">다시 계산</button>
+      <button class="btn btn-primary" id="retrySave" style="display:none;">다시 저장</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const TOTAL_STEPS = 6;
+const stepNames = ['','기본 정보','교통','식품','전기·디지털','물·난방','쓰레기·소비'];
+
+// 수단별 평균 속도 (km/h) — 이동 시간을 거리로 환산하는 데 사용
+const SPEED = { walk:0, bus:18, subway:30, car:30 };
+
+let commuteMode = '';
+let weekendMode = '';
+let foodWasteMode = '';
+
+function showStep(n) {
+  document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+  document.getElementById('s'+n).classList.add('active');
+  const pct = Math.round((n / (TOTAL_STEPS+1)) * 100);
+  document.getElementById('progFill').style.width = pct + '%';
+  document.getElementById('stepLabel').textContent = n <= TOTAL_STEPS ? n + ' / ' + TOTAL_STEPS + '단계' : '결과';
+  document.getElementById('stepName').textContent = stepNames[n] || '결과 확인';
+  window.scrollTo(0, 0);
+}
+
+function goNext(from) {
+  if (!validate(from)) return;
+  showStep(from + 1);
+}
+function goPrev(from) { showStep(from - 1); }
+
+function validate(step) {
+  if (!checkBlankInputs(step)) return false;
+  if (step === 1) {
+    if (!v('studentId')) { alert('학번을 입력해주세요'); return false; }
+    if (!v('name')) { alert('이름을 입력해주세요'); return false; }
+    if (n('family') < 1) { alert('가족 수를 1명 이상 입력해주세요'); return false; }
+  }
+  if (step === 2) {
+    if (!commuteMode) { alert('등하교 이동 수단을 선택해주세요'); return false; }
+    if (commuteMode !== 'walk' && n('commute_min') <= 0) { alert('등하교 이동 시간을 입력해주세요'); return false; }
+    if (!weekendMode) { alert('주말 이동 수단을 선택해주세요'); return false; }
+    if (weekendMode !== 'walk' && n('weekend_min') <= 0) { alert('주말 이동 시간을 입력해주세요'); return false; }
+  }
+  if (step === 6) {
+    if (!foodWasteMode) { alert('음식물 쓰레기 양을 선택해주세요'); return false; }
+  }
+  return true;
+}
+
+function v(id) { return document.getElementById(id).value.trim(); }
+function n(id) { return Number(document.getElementById(id).value) || 0; }
+
+function selectCommute(el, val) {
+  commuteMode = val;
+  document.querySelectorAll('#commute-radio .radio-card').forEach(card => card.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('commute-time-field').style.display = val === 'walk' ? 'none' : 'block';
+}
+function selectWeekend(el, val) {
+  weekendMode = val;
+  document.querySelectorAll('#weekend-radio .radio-card').forEach(card => card.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('weekend-time-field').style.display = val === 'walk' ? 'none' : 'block';
+}
+function selectFoodWaste(el, val) {
+  foodWasteMode = val;
+  document.querySelectorAll('#food-waste-radio .radio-card').forEach(card => card.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function calcAndShow() {
+  if (!validate(6)) return; // 유효성 검증 추가 (우회 방지)
+  const fam = n('family') || 1;
+  const ELEC = 0.4541;
+  const WATER = 0.237;
+
+  // ============================
+  // 🚗 교통 (이동 시간 → 거리 환산)
+  // 거리(km) = 속도(km/h) × 시간(분) / 60
+  // ============================
+  const commuteCoef = { walk:0, bus:0.068, subway:0.041, car:0.21 };
+  const weekendCoef = { walk:0, bus:0.055, car:0.21 };
+
+  const commuteKm = (SPEED[commuteMode] || 0) * n('commute_min') / 60;
+  // 주말은 버스/지하철을 묶었으므로 지하철과 버스 중간 속도(24km/h) 적용
+  const weekendSpeed = weekendMode === 'car' ? 30 : weekendMode === 'bus' ? 24 : 0;
+  const weekendKm = weekendSpeed * n('weekend_min') / 60;
+
+  const r_transport =
+    (commuteKm * 2 * 20 * (commuteCoef[commuteMode] || 0)) +
+    (weekendKm * 8 * (weekendCoef[weekendMode] || 0));
+
+  // ============================
+  // 🍖 식품 (육류 통합 + 자동 급식)
+  // ============================
+  let r_food =
+    (n('meat')  * 4 * 0.12 * 12) +
+    (n('fish')  * 4 * 0.10 * 6) +
+    (n('milk')  * 4 * 0.15 * 3) +
+    (n('veg')   * 4 * 0.15 * 2);
+  // 학교 급식 자동 추가: 20회/월 × 1.0kg
+  r_food += 20 * 1.0;
+
+  // ============================
+  // ⚡ 전기 (에어컨 + 자동)
+  // ============================
+  const r_elec_direct = (n('aircon_hr') * 1.5 * 30 * ELEC * (3/12) / fam);
+  const r_elec_auto =
+    (60 * ELEC) +
+    (67.5 * ELEC / fam) +
+    (15 * ELEC) +
+    (20 * ELEC / fam);
+  const r_elec = r_elec_direct + r_elec_auto;
+
+  // ============================
+  // 🔥 가스 (샤워 + 보일러 + 자동 요리)
+  // ============================
+  const shower = n('shower_min');
+  const r_gas =
+    (shower * 0.07 * 30 * 2.22) + // 개인 샤워 온수 에너지는 가족 수로 나누지 않음
+    (n('boiler_hr') * 0.5 * 30 * 2.22 * (4/12) / fam) +
+    (3 * 0.05 * 30 * 2.22 / fam);
+
+  // ============================
+  // 💧 수도 (샤워 + 자동)
+  // ============================
+  const r_water =
+    (shower * 0.01 * 30 * WATER) + // 개인 샤워 물 소비는 가족 수로 나누지 않음
+    (2.0 * WATER) +
+    (2.5 * WATER) +
+    (1.5 * WATER) +
+    (1.0 * WATER);
+
+  // ============================
+  // 🗑️ 쓰레기 (봉투 + 음식물 + 의류 + 자동)
+  // ============================
+  const foodWasteKgPerDay = foodWasteMode === 'low' ? 0.15 : foodWasteMode === 'high' ? 0.4 : 0.26;
+  // 의류 3분류: 상의 7, 하의 25(청바지 가중), 신발 12.5
+  const r_clothes =
+    n('cloth_top') * 7 +
+    n('cloth_bottom') * 25 +
+    n('cloth_shoes') * 12.5;
+  const r_trash =
+    (n('bag_week') * 4 * 20 * 0.0953 / fam) +
+    (foodWasteKgPerDay * 30 * 1.6) +
+    r_clothes +
+    (2 * 4 * 0.5 * 0.49 / fam) + // 택배 2개/주, 골판지 1kg = 약 0.49 kgCO₂e
+    (0.3 * 4 * 3.9); // 일회용품 0.3kg/주, 플라스틱 1kg = 약 3.9 kgCO₂e
+
+  // ============================
+  // ☕ 커피·차 (자동값)
+  // ============================
+  const r_coffee = 7 * 4 * 0.28;
+
+  // ============================
+  // 📺 전자기기 (기본 기기 자동값 + 디지털, index.html과 같은 분류)
+  // ============================
+  const r_digital =
+    (n('streaming_hr') * 55 * 30 / 1000) +
+    (n('gaming_hr') * 80 * 30 / 1000);
+  const r_device =
+    (2 * 45.4 * 30 / 1000) +
+    (2 * 68.1 * 30 / 1000) +
+    (2 * 4.5 * 30 / 1000) +
+    r_digital;
+
+  // ============================
+  // 합산
+  // ============================
+  const monthly = Math.round(r_transport + r_food + r_elec + r_gas + r_water + r_trash + r_coffee + r_device);
+  const yearly = monthly * 12;
+  const trees = Math.round(yearly / 9.1);
+
+  document.getElementById('res-name').textContent = v('name') + '님의 탄소발자국';
+  document.getElementById('res-month').textContent = monthly.toLocaleString();
+  document.getElementById('res-year').textContent = yearly.toLocaleString();
+  document.getElementById('res-tree').textContent = trees.toLocaleString();
+
+  showTierCard(monthly);
+
+  const items = [
+    { name:'교통', val: r_transport },
+    { name:'식품', val: r_food },
+    { name:'전기', val: r_elec },
+    { name:'가스', val: r_gas },
+    { name:'수도', val: r_water },
+    { name:'쓰레기', val: r_trash },
+    { name:'커피·차', val: r_coffee },
+    { name:'전자기기', val: r_device },
+  ];
+  const maxVal = Math.max(...items.map(x => x.val), 1);
+  document.getElementById('breakdown').innerHTML = items.map(x => `
+    <div class="breakdown-item">
+      <span class="bd-name">${x.name}</span>
+      <div class="bd-bar-wrap"><div class="bd-bar" style="width:${Math.round(x.val/maxVal*100)}%"></div></div>
+      <span class="bd-val">${x.val.toFixed(1)} kg</span>
+    </div>
+  `).join('');
+
+  showStep(7);
+
+  saveResult({
+    version: '간단', name: v('name'), studentId: v('studentId'), family: fam,
+    trash: r_trash, gas: r_gas, elec: r_elec, water: r_water,
+    transport: r_transport, coffee: r_coffee, food: r_food, device: r_device,
+    monthly, yearly, trees
+  });
+}
+
+function resetCalc() {
+  commuteMode = ''; weekendMode = ''; foodWasteMode = '';
+  document.querySelectorAll('.radio-card').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('input[type="number"]').forEach(el => el.value = '');
+  document.querySelectorAll('input[type="text"]').forEach(el => el.value = '');
+  document.getElementById('family').value = 4;
+  document.getElementById('commute-time-field').style.display = 'none';
+  document.getElementById('weekend-time-field').style.display = 'none';
+  
+  // 다시 계산할 때 캐릭터 박스를 숨김
+  document.getElementById('character-box').style.display = 'none';
+  document.getElementById('retrySave').style.display = 'none';
+  
+  showStep(1);
+}
+
+showStep(1);
+</script>
+</body>
+</html>

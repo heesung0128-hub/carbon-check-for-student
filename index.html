@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>탄소발자국 계산기</title>
+  <script>const TIERS = <?!= tiersJson ?>;</script>
+  <?!= shared ?>
+</head>
+<body>
+
+<div class="app-header">
+  <span class="logo">🌱</span>
+  <h1>나의 탄소발자국 계산기</h1>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-meta">
+    <span id="stepLabel">1 / 10단계</span>
+    <span id="stepName">시작하기</span>
+  </div>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progFill" style="width:10%"></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="step active" id="s1">
+    <div class="step-title">안녕하세요! 👋</div>
+    <div class="step-desc">탄소발자국 계산을 시작해요.<br>학번과 이름을 입력해주세요.</div>
+
+    <div class="field">
+      <label class="field-label">학번</label>
+      <input type="text" id="studentId" placeholder="예: 20301" inputmode="numeric" />
+    </div>
+    <div class="field">
+      <label class="field-label">이름</label>
+      <input type="text" id="name" placeholder="예: 홍길동" />
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goNext(1)">시작하기 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s2">
+    <div class="step-title">우리 가족은 몇 명인가요?</div>
+    <div class="step-desc">에너지 사용량을 가족 수로 나눠<br>나의 1인 배출량을 계산해요.</div>
+
+    <div class="field">
+      <label class="field-label">함께 사는 가족 수</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('family', -1, 1)">−</button>
+          <input type="number" id="family" value="4" min="1" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('family', 1, 1)">+</button>
+        </div>
+        <span class="unit">명</span>
+      </div>
+      <div class="field-hint">자취 중이라면 1명으로 입력하세요</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(2)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(2)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s3">
+    <div class="step-title">쓰레기 배출 습관 🗑️</div>
+    <div class="step-desc">집에서 버리는 쓰레기를 떠올려보세요.<br>모두 일주일 단위로 입력해요.</div>
+
+    <div class="section-label">종량제 봉투</div>
+    <div class="field">
+      <label class="field-label">일주일에 쓰레기 봉투를 몇 개 버리나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('bag_week', -0.5, 0)">−</button>
+          <input type="number" id="bag_week" placeholder="2" min="0" step="0.5" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('bag_week', 0.5, 0)">+</button>
+        </div>
+        <span class="unit">개 / 주</span>
+      </div>
+      <div class="field-hint">20L 봉투 기준. 작은 봉투는 0.5, 큰 봉투는 1.5로 입력</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">일회용품 (일주일 사용량)</div>
+    <div class="info-box">
+      품목별로 각각 입력해주세요. 사용하지 않으면 0을 입력하면 돼요.
+    </div>
+
+    <div class="item-card">
+      <label class="field-label">☕ 일회용 종이/플라스틱 컵</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('cup_week', -1, 0)">−</button>
+          <input type="number" id="cup_week" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('cup_week', 1, 0)">+</button>
+        </div>
+        <span class="unit">개 / 주</span>
+      </div>
+      <div class="field-hint">카페·편의점 음료수 컵 등</div>
+    </div>
+
+    <div class="item-card">
+      <label class="field-label">🥤 플라스틱 빨대</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('straw_week', -1, 0)">−</button>
+          <input type="number" id="straw_week" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('straw_week', 1, 0)">+</button>
+        </div>
+        <span class="unit">개 / 주</span>
+      </div>
+    </div>
+
+    <div class="item-card">
+      <label class="field-label">🛍️ 비닐봉투</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('bag_p_week', -1, 0)">−</button>
+          <input type="number" id="bag_p_week" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('bag_p_week', 1, 0)">+</button>
+        </div>
+        <span class="unit">개 / 주</span>
+      </div>
+      <div class="field-hint">편의점·마트 비닐, 검은 봉투 등</div>
+    </div>
+
+    <div class="item-card">
+      <label class="field-label">🧴 페트병</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('bottle_week', -1, 0)">−</button>
+          <input type="number" id="bottle_week" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('bottle_week', 1, 0)">+</button>
+        </div>
+        <span class="unit">개 / 주</span>
+      </div>
+      <div class="field-hint">생수, 음료수 등</div>
+    </div>
+
+    <div class="item-card">
+      <label class="field-label">🍱 일회용 도시락·배달용기</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('container_week', -1, 0)">−</button>
+          <input type="number" id="container_week" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('container_week', 1, 0)">+</button>
+        </div>
+        <span class="unit">개 / 주</span>
+      </div>
+      <div class="field-hint">배달음식 용기, 편의점 도시락 등</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">택배</div>
+    <div class="field">
+      <label class="field-label">일주일에 택배를 몇 개 받나요? (가족 전체)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('delivery_week', -1, 0)">−</button>
+          <input type="number" id="delivery_week" placeholder="2" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('delivery_week', 1, 0)">+</button>
+        </div>
+        <span class="unit">개 / 주</span>
+      </div>
+      <div class="field-hint">박스 1개당 약 0.5kg 포장재 발생</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">음식물 쓰레기</div>
+    <div class="field">
+      <label class="field-label">우리집 음식물 쓰레기 양은 어느 정도인가요?</label>
+      <div class="radio-group" id="food-waste-radio">
+        <div class="radio-card" onclick="selectFoodWaste(this, 'low')">
+          <div class="radio-dot"></div>
+          <span class="radio-text">적게 (남기지 않음)</span>
+          <span class="radio-sub">1인 0.15kg/일</span>
+        </div>
+        <div class="radio-card" onclick="selectFoodWaste(this, 'mid')">
+          <div class="radio-dot"></div>
+          <span class="radio-text">보통 (한국 평균)</span>
+          <span class="radio-sub">1인 0.26kg/일</span>
+        </div>
+        <div class="radio-card" onclick="selectFoodWaste(this, 'high')">
+          <div class="radio-dot"></div>
+          <span class="radio-text">많이 (자주 남김)</span>
+          <span class="radio-sub">1인 0.4kg/일</span>
+        </div>
+      </div>
+      <div class="field-hint">한국인 1인당 연간 95kg 배출 (UNEP). 음식물 1kg = 약 1.6 kg CO₂</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">의류 (한 달 구매)</div>
+    <div class="info-box">
+      종류별로 한 달에 새로 구매한 개수를 입력해주세요. 사지 않았으면 0이에요.
+    </div>
+
+    <div class="item-card">
+      <label class="field-label">👕 티셔츠·셔츠·맨투맨·후드</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_top', -1, 0)">−</button>
+          <input type="number" id="cloth_top" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_top', 1, 0)">+</button>
+        </div>
+        <span class="unit">벌 / 월</span>
+      </div>
+      <div class="field-hint">상의 1벌 = 약 7 kg CO₂ (그린피스)</div>
+    </div>
+
+    <div class="item-card">
+      <label class="field-label">👖 청바지</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_jeans', -1, 0)">−</button>
+          <input type="number" id="cloth_jeans" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_jeans', 1, 0)">+</button>
+        </div>
+        <span class="unit">벌 / 월</span>
+      </div>
+      <div class="field-hint">청바지 1벌 = 약 32.5 kg CO₂ (그린피스)</div>
+    </div>
+
+    <div class="item-card">
+      <label class="field-label">👗 일반 바지·치마·원피스</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_pants', -1, 0)">−</button>
+          <input type="number" id="cloth_pants" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_pants', 1, 0)">+</button>
+        </div>
+        <span class="unit">벌 / 월</span>
+      </div>
+      <div class="field-hint">면바지·치마·원피스 등 1벌 = 약 15 kg CO₂</div>
+    </div>
+
+    <div class="item-card">
+      <label class="field-label">👟 신발·운동화</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_shoes', -1, 0)">−</button>
+          <input type="number" id="cloth_shoes" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('cloth_shoes', 1, 0)">+</button>
+        </div>
+        <span class="unit">켤레 / 월</span>
+      </div>
+      <div class="field-hint">스니커즈 1켤레 = 약 12.5 kg CO₂</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(3)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(3)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s4">
+    <div class="step-title">가스 사용 습관 🔥</div>
+    <div class="step-desc">샤워·요리·난방 등 가스 관련 생활습관이에요.<br>샤워 시간은 수도 계산에도 함께 사용돼요.</div>
+
+    <div class="section-label">샤워</div>
+    <div class="field">
+      <label class="field-label">하루 평균 샤워를 몇 분 하나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('shower_min', -5, 0)">−</button>
+          <input type="number" id="shower_min" placeholder="10" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('shower_min', 5, 0)">+</button>
+        </div>
+        <span class="unit">분 / 일</span>
+      </div>
+      <div class="field-hint">온수 1분 = 가스 약 0.07m³ 소비</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">요리</div>
+    <div class="field">
+      <label class="field-label">가스레인지로 하루 몇 번 요리하나요? (가족 전체)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('cook_day', -1, 0)">−</button>
+          <input type="number" id="cook_day" placeholder="3" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('cook_day', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 일</span>
+      </div>
+      <div class="field-hint">요리 1회(15분 기준) = 가스 약 0.05m³ 소비</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">난방 (겨울철 기준)</div>
+    <div class="field">
+      <label class="field-label">겨울철 하루 평균 보일러를 몇 시간 켜나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('boiler_hr', -1, 0)">−</button>
+          <input type="number" id="boiler_hr" placeholder="4" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('boiler_hr', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">보일러 1시간 = 가스 약 0.5m³. 연간 4개월(12~3월) 사용 기준으로 자동 환산</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(4)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(4)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s5">
+    <div class="step-title">전기 사용 습관 ⚡</div>
+    <div class="step-desc">집에서 사용하는 전기 제품들을 떠올려보세요.</div>
+
+    <div class="section-label">냉방 (여름철 기준)</div>
+    <div class="field">
+      <label class="field-label">여름철 하루 평균 에어컨을 몇 시간 켜나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('aircon_hr', -1, 0)">−</button>
+          <input type="number" id="aircon_hr" placeholder="6" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('aircon_hr', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">1시간 = 약 1.5kWh · 전기 배출계수 0.4541 kgCO₂/kWh (2025 환경부) · 연간 3개월(6~8월) 사용 기준 자동 환산</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">세탁</div>
+    <div class="field">
+      <label class="field-label">세탁기를 일주일에 몇 번 돌리나요? (가족 전체)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('washer_week', -1, 0)">−</button>
+          <input type="number" id="washer_week" placeholder="3" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('washer_week', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 주</span>
+      </div>
+      <div class="field-hint">1회 = 약 0.5kWh</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">건조기를 일주일에 몇 번 사용하나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('dryer_week', -1, 0)">−</button>
+          <input type="number" id="dryer_week" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('dryer_week', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 주</span>
+      </div>
+      <div class="field-hint">건조기는 1회 = 약 3.0kWh (세탁기보다 훨씬 많아요)</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">대기전력</div>
+    <div class="toggle-field">
+      <div>
+        <div class="toggle-label">사용 안 할 때 플러그를 뽑지 않아요</div>
+        <div class="toggle-hint">대기전력 미차단 시 월 약 5kWh 추가 발생</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="standby" />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(5)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(5)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s6">
+    <div class="step-title">수도 사용 습관 💧</div>
+    <div class="step-desc">샤워 시간은 앞에서 입력한 값을 자동으로 적용해요.<br>나머지 생활습관을 알려주세요.</div>
+
+    <div class="tip-box">🚿 앞에서 입력한 샤워 시간 (<span id="shower_display">-</span>분)이 수도 계산에도 함께 적용돼요.</div>
+
+    <div class="section-label" style="margin-top:20px">양치</div>
+    <div class="toggle-field">
+      <div>
+        <div class="toggle-label">양치할 때 물을 잠그지 않아요</div>
+        <div class="toggle-hint">안 잠글 경우 1회 약 20L 추가 낭비</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toothbrush" />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">설거지</div>
+    <div class="field">
+      <label class="field-label">설거지 방법을 선택해주세요</label>
+      <div class="radio-group" id="dish-radio">
+        <div class="radio-card" onclick="selectDish(this, 'hand')">
+          <div class="radio-dot"></div>
+          <span class="radio-text">손 설거지</span>
+          <span class="radio-sub">1회 약 50L</span>
+        </div>
+        <div class="radio-card" onclick="selectDish(this, 'machine')">
+          <div class="radio-dot"></div>
+          <span class="radio-text">식기세척기</span>
+          <span class="radio-sub">1회 약 15L</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">하루 설거지를 몇 번 하나요? (가족 전체)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('dish_day', -1, 0)">−</button>
+          <input type="number" id="dish_day" placeholder="2" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('dish_day', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 일</span>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">화장실</div>
+    <div class="field">
+      <label class="field-label">하루 변기를 몇 번 사용하나요? (본인 기준)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('toilet_day', -1, 0)">−</button>
+          <input type="number" id="toilet_day" placeholder="5" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('toilet_day', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 일</span>
+      </div>
+      <div class="field-hint">물 내리기 1회 = 약 7L</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(6)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(6)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s7">
+    <div class="step-title">이동 습관 🚗</div>
+    <div class="step-desc">등하교와 주말 이동 방법을 알려주세요.</div>
+
+    <div class="section-label">등하교</div>
+    <div class="field">
+      <label class="field-label">주로 어떻게 등하교하나요?</label>
+      <div class="radio-group" id="commute-radio">
+        <div class="radio-card" onclick="selectCommute(this, 'walk')"><div class="radio-dot"></div><span class="radio-text">도보 / 자전거</span><span class="radio-sub">0 CO₂</span></div>
+        <div class="radio-card" onclick="selectCommute(this, 'bus')"><div class="radio-dot"></div><span class="radio-text">버스</span><span class="radio-sub">0.068 kg/km</span></div>
+        <div class="radio-card" onclick="selectCommute(this, 'subway')"><div class="radio-dot"></div><span class="radio-text">지하철</span><span class="radio-sub">0.041 kg/km</span></div>
+        <div class="radio-card" onclick="selectCommute(this, 'car')"><div class="radio-dot"></div><span class="radio-text">자가용</span><span class="radio-sub">0.21 kg/km</span></div>
+      </div>
+    </div>
+
+    <div class="field" id="commute-dist-field" style="display:none">
+      <label class="field-label">편도 거리는 얼마나 되나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('commute_km', -5, 0)">−</button>
+          <input type="number" id="commute_km" placeholder="5" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('commute_km', 5, 0)">+</button>
+        </div>
+        <span class="unit">km</span>
+      </div>
+      <div class="field-hint">왕복 20일/월 기준으로 자동 계산돼요</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">주말·외출</div>
+    <div class="field">
+      <label class="field-label">주말에 주로 어떻게 이동하나요?</label>
+      <div class="radio-group" id="weekend-radio">
+        <div class="radio-card" onclick="selectWeekend(this, 'walk')"><div class="radio-dot"></div><span class="radio-text">도보 / 자전거</span><span class="radio-sub">0 CO₂</span></div>
+        <div class="radio-card" onclick="selectWeekend(this, 'bus')"><div class="radio-dot"></div><span class="radio-text">버스 / 지하철</span><span class="radio-sub">0.055 kg/km</span></div>
+        <div class="radio-card" onclick="selectWeekend(this, 'car')"><div class="radio-dot"></div><span class="radio-text">자가용</span><span class="radio-sub">0.21 kg/km</span></div>
+      </div>
+    </div>
+
+    <div class="field" id="weekend-dist-field" style="display:none">
+      <label class="field-label">주말 하루 평균 이동 거리는?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('weekend_km', -5, 0)">−</button>
+          <input type="number" id="weekend_km" placeholder="10" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('weekend_km', 5, 0)">+</button>
+        </div>
+        <span class="unit">km / 일</span>
+      </div>
+      <div class="field-hint">월 8일(주말) 기준으로 자동 계산돼요</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">항공</div>
+    <div class="info-box">
+      비행기는 거리에 따라 배출량 차이가 매우 커요.<br>
+      탑승 횟수는 <strong>왕복</strong> 기준으로 입력해주세요.
+    </div>
+    <div class="field">
+      <label class="field-label">국내선 (예: 서울↔제주)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('flight_dom', -1, 0)">−</button>
+          <input type="number" id="flight_dom" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('flight_dom', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 년</span>
+      </div>
+      <div class="field-hint">왕복 1회 = 약 260 kg CO₂ (편도 450km × 2)</div>
+    </div>
+    <div class="field">
+      <label class="field-label">국제선 단거리 (아시아권: 일본·중국·동남아)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('flight_short', -1, 0)">−</button>
+          <input type="number" id="flight_short" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('flight_short', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 년</span>
+      </div>
+      <div class="field-hint">왕복 1회 = 약 800 kg CO₂ (편도 1,400km × 2)</div>
+    </div>
+    <div class="field">
+      <label class="field-label">국제선 장거리 (미주·유럽·오세아니아)</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('flight_long', -1, 0)">−</button>
+          <input type="number" id="flight_long" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('flight_long', 1, 0)">+</button>
+        </div>
+        <span class="unit">회 / 년</span>
+      </div>
+      <div class="field-hint">왕복 1회 = 약 5,000 kg CO₂ (편도 8,800km × 2)</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(7)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(7)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s8">
+    <div class="step-title">커피·차 소비 ☕</div>
+    <div class="step-desc">커피, 차, 음료 등을 얼마나 자주 마시나요?</div>
+
+    <div class="field">
+      <label class="field-label">음용 빈도</label>
+      <div class="radio-group" id="coffee-radio">
+        <div class="radio-card" onclick="selectCoffee(this, 'dd')"><div class="radio-dot"></div><span class="radio-text">매일</span></div>
+        <div class="radio-card" onclick="selectCoffee(this, 'wk')"><div class="radio-dot"></div><span class="radio-text">매주</span></div>
+        <div class="radio-card" onclick="selectCoffee(this, 'mm')"><div class="radio-dot"></div><span class="radio-text">매월</span></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">선택한 기간 동안 몇 잔 마시나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('coffee_n', -1, 0)">−</button>
+          <input type="number" id="coffee_n" placeholder="2" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('coffee_n', 1, 0)">+</button>
+        </div>
+        <span class="unit">잔</span>
+      </div>
+      <div class="field-hint">1잔 = 약 0.28 kg CO₂ (종이컵 포함)</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(8)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(8)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s9">
+    <div class="step-title">식품 소비 🍖</div>
+    <div class="step-desc">일주일에 각 식품을 몇 번 먹나요?<br>식사 1회 기준으로 입력해주세요.</div>
+
+    <div class="info-box">
+      🍱 <strong>학교 점심 급식(평일 5회)은 자동으로 포함</strong>돼요!<br>
+      급식을 뺀 나머지 식사(평일 저녁, 주말 식사 등)만 입력해주세요.
+    </div>
+
+    <div class="grid-2">
+      <div class="food-card">
+        <div class="food-name">🥩 소고기</div>
+        <div class="food-co2">27 kg CO₂/kg · 1회 100g</div>
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('f1', -1, 0)">−</button>
+          <input type="number" id="f1" placeholder="0" min="0" />
+          <button type="button" class="btn-step" onclick="adjustVal('f1', 1, 0)">+</button>
+        </div>
+        <div class="field-hint" style="margin-top:4px">회/주</div>
+      </div>
+      <div class="food-card">
+        <div class="food-name">🐷 돼지고기</div>
+        <div class="food-co2">6.0 kg CO₂/kg · 1회 120g</div>
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('f2', -1, 0)">−</button>
+          <input type="number" id="f2" placeholder="0" min="0" />
+          <button type="button" class="btn-step" onclick="adjustVal('f2', 1, 0)">+</button>
+        </div>
+        <div class="field-hint" style="margin-top:4px">회/주</div>
+      </div>
+      <div class="food-card">
+        <div class="food-name">🍗 닭고기</div>
+        <div class="food-co2">4.0 kg CO₂/kg · 1회 100g</div>
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('f3', -1, 0)">−</button>
+          <input type="number" id="f3" placeholder="0" min="0" />
+          <button type="button" class="btn-step" onclick="adjustVal('f3', 1, 0)">+</button>
+        </div>
+        <div class="field-hint" style="margin-top:4px">회/주</div>
+      </div>
+      <div class="food-card">
+        <div class="food-name">🐟 어류·해산물</div>
+        <div class="food-co2">6.0 kg CO₂/kg · 1회 100g</div>
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('f4', -1, 0)">−</button>
+          <input type="number" id="f4" placeholder="0" min="0" />
+          <button type="button" class="btn-step" onclick="adjustVal('f4', 1, 0)">+</button>
+        </div>
+        <div class="field-hint" style="margin-top:4px">회/주</div>
+      </div>
+      <div class="food-card">
+        <div class="food-name">🥛 우유</div>
+        <div class="food-co2">3.0 kg CO₂/kg · 1회 150g</div>
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('f5', -1, 0)">−</button>
+          <input type="number" id="f5" placeholder="0" min="0" />
+          <button type="button" class="btn-step" onclick="adjustVal('f5', 1, 0)">+</button>
+        </div>
+        <div class="field-hint" style="margin-top:4px">회/주 (우유 1잔 ≈ 150g)</div>
+      </div>
+      <div class="food-card">
+        <div class="food-name">🧀 치즈·버터</div>
+        <div class="food-co2">13 kg CO₂/kg · 1회 30g</div>
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('f8', -1, 0)">−</button>
+          <input type="number" id="f8" placeholder="0" min="0" />
+          <button type="button" class="btn-step" onclick="adjustVal('f8', 1, 0)">+</button>
+        </div>
+        <div class="field-hint" style="margin-top:4px">회/주 (치즈 1장 ≈ 20g)</div>
+      </div>
+      <div class="food-card">
+        <div class="food-name">🥚 계란</div>
+        <div class="food-co2">4.8 kg CO₂/kg · 1회 50g</div>
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('f6', -1, 0)">−</button>
+          <input type="number" id="f6" placeholder="0" min="0" />
+          <button type="button" class="btn-step" onclick="adjustVal('f6', 1, 0)">+</button>
+        </div>
+        <div class="field-hint" style="margin-top:4px">회/주 (계란 1알 ≈ 50g)</div>
+      </div>
+      <div class="food-card">
+        <div class="food-name">🥦 채소·과일</div>
+        <div class="food-co2">2.0 kg CO₂/kg · 1회 150g</div>
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('f7', -1, 0)">−</button>
+          <input type="number" id="f7" placeholder="0" min="0" />
+          <button type="button" class="btn-step" onclick="adjustVal('f7', 1, 0)">+</button>
+        </div>
+        <div class="field-hint" style="margin-top:4px">회/주</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(9)">← 이전</button>
+      <button class="btn btn-primary" onclick="goNext(9)">다음 →</button>
+    </div>
+  </div>
+
+  <div class="step" id="s10">
+    <div class="step-title">전자기기 & 반려동물 📺</div>
+    <div class="step-desc">마지막 단계예요! 거의 다 왔어요.</div>
+
+    <div class="section-label">전자기기</div>
+    <div class="field">
+      <label class="field-label">하루 평균 TV를 몇 시간 시청하나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('tv', -1, 0)">−</button>
+          <input type="number" id="tv" placeholder="2" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('tv', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">평균 LED TV (100W) 기준 1시간 = 약 45g CO₂</div>
+    </div>
+    <div class="field">
+      <label class="field-label">하루 평균 컴퓨터를 몇 시간 사용하나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('pc', -1, 0)">−</button>
+          <input type="number" id="pc" placeholder="3" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('pc', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">데스크탑+모니터 (150W) 기준 1시간 = 약 68g CO₂</div>
+    </div>
+    <div class="field">
+      <label class="field-label">하루 평균 핸드폰을 몇 시간 충전하나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('phone_hr', -1, 0)">−</button>
+          <input type="number" id="phone_hr" placeholder="2" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('phone_hr', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">충전 시간 기준. 1시간 = 약 4.5g CO₂</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">디지털 활동 🎬</div>
+    <div class="info-box">
+      유튜브·넷플릭스·릴스·틱톡 등 영상을 보거나 게임을 할 때<br>
+      <strong>데이터센터·통신망</strong>에서도 전기를 사용해요. 이 부분도 함께 계산돼요.
+    </div>
+
+    <div class="field">
+      <label class="field-label">📺 하루 평균 영상 시청 시간</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('streaming_hr', -1, 0)">−</button>
+          <input type="number" id="streaming_hr" placeholder="2" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('streaming_hr', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">유튜브, 넷플릭스, 인스타 릴스, 틱톡 등 모든 영상 합산. 1시간 = 약 55g CO₂</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">🎮 하루 평균 온라인 게임 시간</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('gaming_hr', -1, 0)">−</button>
+          <input type="number" id="gaming_hr" placeholder="1" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('gaming_hr', 1, 0)">+</button>
+        </div>
+        <span class="unit">시간 / 일</span>
+      </div>
+      <div class="field-hint">PC·콘솔·모바일 게임 합산. 1시간 = 약 80g CO₂</div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">반려동물</div>
+    <div class="field">
+      <label class="field-label">반려견 (개) 몇 마리를 키우나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('dog', -1, 0)">−</button>
+          <input type="number" id="dog" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('dog', 1, 0)">+</button>
+        </div>
+        <span class="unit">마리</span>
+      </div>
+      <div class="field-hint">1마리 = 약 770 kg CO₂/년</div>
+    </div>
+    <div class="field">
+      <label class="field-label">반려묘 (고양이) 몇 마리를 키우나요?</label>
+      <div class="input-row">
+        <div class="stepper">
+          <button type="button" class="btn-step" onclick="adjustVal('cat', -1, 0)">−</button>
+          <input type="number" id="cat" placeholder="0" min="0" class="input-num" />
+          <button type="button" class="btn-step" onclick="adjustVal('cat', 1, 0)">+</button>
+        </div>
+        <span class="unit">마리</span>
+      </div>
+      <div class="field-hint">1마리 = 약 310 kg CO₂/년</div>
+    </div>
+
+    <div class="info-box" style="margin-top:20px;">
+      <strong>📌 자동 추가되는 항목</strong><br>
+      한국 고등학생의 일상을 반영해 다음 요소들이 자동으로 계산돼요.<br>
+      • 학교 체류 (전기·냉난방): 8시간/일 × 5일/주<br>
+      • 학교 급식: 5회/주<br>
+      • 가정 조명: 5시간/일<br>
+      • 가전 (냉장고·전기밥솥 등): 가구당 평균<br>
+      • 학원·도서관 등 공공시설: 평균값
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goPrev(10)">← 이전</button>
+      <button class="btn btn-primary" onclick="calcAndShow()">결과 보기 🌱</button>
+    </div>
+  </div>
+
+  <div class="step" id="s11">
+    <div class="result-hero">
+      <div class="name" id="res-name"></div>
+      <div class="month-val" id="res-month">-</div>
+      <div class="month-unit">kg CO₂ / 월</div>
+    </div>
+
+    <div class="result-cards">
+      <div class="result-card">
+        <div class="label">연간 배출량</div>
+        <div class="value" id="res-year">-</div>
+        <div class="unit2">kg CO₂/년</div>
+      </div>
+      <div class="result-card">
+        <div class="label">상쇄 필요 나무</div>
+        <div class="value" id="res-tree">-</div>
+        <div class="unit2">그루/년</div>
+      </div>
+    </div>
+
+    <div id="character-box" class="char-card" style="display: none;">
+      <h3>나의 탄소 등급</h3>
+      <h2 id="char-tier-name">등급 캐릭터 이름</h2>
+      <img id="char-image" src="" alt="탄소 캐릭터">
+      <br>
+      <p id="char-message">"메시지 톤"</p>
+    </div>
+    <div class="tree-info">
+      <span class="tree-icon">🌲</span>
+      <div class="tree-text">
+        <strong>기준 수종: 30년생 중부지방 소나무</strong><br>
+        한 그루가 1년간 흡수하는 CO₂는 약 <strong>9.1kg</strong>이에요.<br>
+        나의 연간 배출량을 상쇄하려면 위 그루 수만큼의 소나무가 필요해요.
+        <div style="font-size:11px; color:var(--text-hint); margin-top:6px;">출처: 국립산림과학원 주요 산림수종의 표준 탄소흡수량</div>
+      </div>
+    </div>
+
+    <div class="breakdown-title">항목별 배출량</div>
+    <div id="breakdown"></div>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-top:16px; font-size:11px; color:var(--text-hint); line-height:1.7;">
+      <strong style="color:var(--text-sub); font-size:12px;">📚 데이터 출처</strong><br>
+      • 전기 배출계수: 환경부 국가 온실가스 배출계수 (2025년 공표)<br>
+      • 가스·수도 배출계수: 환경부 탄소포인트제 기준<br>
+      • 자동차·대중교통: 한국기후·환경네트워크<br>
+      • 항공: 유럽환경청 (285g/km 기준)<br>
+      • 식품 배출계수: FAO·국제 LCA 연구 평균값<br>
+      • 음식물 쓰레기: UNEP·환경부 자료<br>
+      • 일회용품: OECD Global Plastics Outlook (플라스틱 1kg당 약 3.9kg)<br>
+      • 택배 포장재: FEFCO 골판지 탄소발자국 2021 (1kg당 약 0.49kg)<br>
+      • 의류: 그린피스 (티셔츠 7kg, 청바지 32.5kg)<br>
+      • 전자기기: 한국에너지공단 가전 평균소비전력 × 환경부 전력배출계수<br>
+      • 디지털 활동: 메릴랜드·MIT 연구 (2021)<br>
+      • 산림 흡수량: 국립산림과학원 「주요 산림수종의 표준 탄소흡수량」<br>
+      • 반려동물: 영국 ZeroSmart 연구
+    </div>
+
+    <div class="save-status saving" id="saveStatus">결과를 저장하는 중...</div>
+
+    <div class="btn-row" style="margin-top:16px;">
+      <button class="btn" onclick="resetCalc()">다시 계산</button>
+      <button class="btn btn-primary" id="retrySave" style="display:none;">다시 저장</button>
+    </div>
+  </div>
+
+</div><script>
+const TOTAL_STEPS = 10;
+const stepNames = ['','기본 정보','가족 수','쓰레기','가스','전기','수도','교통','커피·차','식품','전자기기'];
+
+let dishMode = '';
+let commuteMode = '';
+let weekendMode = '';
+let coffeeMode = '';
+let foodWasteMode = '';
+
+function showStep(n) {
+  document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+  document.getElementById('s'+n).classList.add('active');
+  const pct = Math.round((n / (TOTAL_STEPS+1)) * 100);
+  document.getElementById('progFill').style.width = pct + '%';
+  document.getElementById('stepLabel').textContent = n <= TOTAL_STEPS ? n + ' / ' + TOTAL_STEPS + '단계' : '결과';
+  document.getElementById('stepName').textContent = stepNames[n] || '결과 확인';
+  window.scrollTo(0, 0);
+}
+
+function goNext(from) {
+  if (!validate(from)) return;
+  preProcess(from);
+  showStep(from + 1);
+}
+
+function goPrev(from) {
+  showStep(from - 1);
+}
+
+function validate(step) {
+  if (!checkBlankInputs(step)) return false;
+  if (step === 1) {
+    if (!v('studentId')) { alert('학번을 입력해주세요'); return false; }
+    if (!v('name')) { alert('이름을 입력해주세요'); return false; }
+  }
+  if (step === 2) {
+    if (n('family') < 1) { alert('1명 이상 입력해주세요'); return false; }
+  }
+  if (step === 3) {
+    if (!foodWasteMode) { alert('음식물 쓰레기 양을 선택해주세요'); return false; }
+  }
+  if (step === 7) {
+    if (!commuteMode) { alert('등하교 이동 수단을 선택해주세요'); return false; }
+    if (commuteMode !== 'walk' && n('commute_km') <= 0) { alert('등하교 거리를 입력해주세요'); return false; }
+    if (!weekendMode) { alert('주말 이동 수단을 선택해주세요'); return false; }
+    if (weekendMode !== 'walk' && n('weekend_km') <= 0) { alert('주말 이동 거리를 입력해주세요'); return false; }
+  }
+  if (step === 8) {
+    if (!coffeeMode) { alert('음용 빈도를 선택해주세요'); return false; }
+  }
+  if (step === 6) {
+    if (!dishMode) { alert('설거지 방법을 선택해주세요'); return false; }
+  }
+  return true;
+}
+
+function preProcess(step) {
+  if (step === 4) {
+    document.getElementById('shower_display').textContent = n('shower_min');
+  }
+}
+
+function v(id) { return document.getElementById(id).value.trim(); }
+function n(id) { return Number(document.getElementById(id).value) || 0; }
+function checked(id) { return document.getElementById(id).checked; }
+
+function selectDish(el, val) {
+  dishMode = val;
+  document.querySelectorAll('#dish-radio .radio-card').forEach(card => card.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function selectFoodWaste(el, val) {
+  foodWasteMode = val;
+  document.querySelectorAll('#food-waste-radio .radio-card').forEach(card => card.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function selectCommute(el, val) {
+  commuteMode = val;
+  document.querySelectorAll('#commute-radio .radio-card').forEach(card => card.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('commute-dist-field').style.display = val === 'walk' ? 'none' : 'block';
+}
+
+function selectWeekend(el, val) {
+  weekendMode = val;
+  document.querySelectorAll('#weekend-radio .radio-card').forEach(card => card.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('weekend-dist-field').style.display = val === 'walk' ? 'none' : 'block';
+}
+
+function selectCoffee(el, val) {
+  coffeeMode = val;
+  document.querySelectorAll('#coffee-radio .radio-card').forEach(card => card.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function calcAndShow() {
+  if (!validate(10)) return;
+  const fam = n('family') || 1;
+
+  // 쓰레기
+  const disposableKg =
+    n('cup_week') * 0.015 +
+    n('straw_week') * 0.001 +
+    n('bag_p_week') * 0.005 +
+    n('bottle_week') * 0.025 +
+    n('container_week') * 0.05;
+
+  const foodWasteKgPerDay = foodWasteMode === 'low' ? 0.15 : foodWasteMode === 'high' ? 0.4 : 0.26;
+  const r_clothes = n('cloth_top') * 7 + n('cloth_jeans') * 32.5 + n('cloth_pants') * 15 + n('cloth_shoes') * 12.5;
+
+  const r_trash =
+    (n('bag_week') * 4 * 20 * 0.0953 / fam) +
+    (disposableKg * 4 * 3.9) + // 플라스틱 1kg = 약 3.9 kgCO₂e, 개인 사용량은 가족 수로 나누지 않음
+    (n('delivery_week') * 4 * 0.5 * 0.49 / fam) + // 골판지 1kg = 약 0.49 kgCO₂e
+    (foodWasteKgPerDay * 30 * 1.6) +
+    r_clothes;
+
+  // 가스
+  const shower = n('shower_min');
+  const r_gas =
+    (shower * 0.07 * 30 * 2.22) + // 개인 샤워 온수 에너지는 가족 수로 나누지 않음
+    (n('cook_day') * 0.05 * 30 * 2.22 / fam) +
+    (n('boiler_hr') * 0.5 * 30 * 2.22 * (4/12) / fam);
+
+  // 전기
+  const ELEC = 0.4541;
+  const r_elec_direct =
+    (n('aircon_hr') * 1.5 * 30 * ELEC * (3/12) / fam) +
+    (n('washer_week') * 4 * 0.5 * ELEC / fam) +
+    (n('dryer_week') * 4 * 3.0 * ELEC / fam) +
+    (checked('standby') ? 5 * ELEC / fam : 0);
+
+  const r_elec_auto = (60 * ELEC) + (7.5 * ELEC / fam) + (35 * ELEC / fam) + (25 * ELEC / fam) + (15 * ELEC);
+  const r_elec = r_elec_direct + r_elec_auto;
+
+  // 수도
+  const WATER = 0.237;
+  const dishL = dishMode === 'hand' ? 50 : 15;
+  const r_water_direct =
+    (shower * 0.01 * 30 * WATER) + // 개인 샤워 물 소비는 가족 수로 나누지 않음
+    (checked('toothbrush') ? 0.02 * 2 * 30 * WATER : 0) + // 개인 양치 습관은 가족 수로 나누지 않음
+    (n('dish_day') * dishL * 0.001 * 30 * WATER / fam) +
+    (n('toilet_day') * 0.007 * 30 * WATER); // 개인 변기 사용량(본인 기준)은 가족 수로 나누지 않음
+
+  const r_water_auto = (2.0 * WATER) + (n('washer_week') * 4 * 0.06 * WATER / fam) + (2.5 * WATER) + (1.5 * WATER);
+  const r_water = r_water_direct + r_water_auto;
+
+  // 교통
+  const commuteCoef = { walk:0, bus:0.068, subway:0.041, car:0.21 };
+  const weekendCoef = { walk:0, bus:0.055, car:0.21 };
+  const r_transport =
+    (n('commute_km') * 2 * 20 * (commuteCoef[commuteMode] || 0)) +
+    (n('weekend_km') * 8 * (weekendCoef[weekendMode] || 0)) +
+    ((n('flight_dom') * 260 + n('flight_short') * 800 + n('flight_long') * 5000) / 12);
+
+  // 커피·차
+  const coffeeN = n('coffee_n');
+  let r_coffee = 0;
+  if (coffeeMode === 'dd') r_coffee = coffeeN * 30 * 0.28;
+  else if (coffeeMode === 'wk') r_coffee = coffeeN * 4 * 0.28;
+  else if (coffeeMode === 'mm') r_coffee = coffeeN * 0.28;
+
+  // 식품
+  const fw = [0.1, 0.12, 0.1, 0.1, 0.15, 0.05, 0.15];
+  const fc = [27, 6.0, 4.0, 6, 3.0, 4.8, 2];
+  let r_food = 0;
+  for (let i = 1; i <= 7; i++) {
+    const cntPerWeek = n('f' + i);
+    r_food += (cntPerWeek * 4) * fw[i-1] * fc[i-1];
+  }
+  r_food += (n('f8') * 4 * 0.03) * 13;
+  r_food += 20 * 1.0;
+
+  // 전자기기 + 디지털 + 반려동물
+  const r_device_basic = (n('tv') * 45.4 * 30 / 1000) + (n('pc') * 68.1 * 30 / 1000) + (n('phone_hr') * 4.5 * 30 / 1000);
+  const r_digital = (n('streaming_hr') * 55 * 30 / 1000) + (n('gaming_hr') * 80 * 30 / 1000);
+  const r_pet = (n('dog') * 770 / 12 + n('cat') * 310 / 12) / fam;
+  const r_device = r_device_basic + r_digital + r_pet;
+
+  // 합산
+  const monthly = Math.round(r_trash + r_gas + r_elec + r_water + r_transport + r_coffee + r_food + r_device);
+  const yearly = monthly * 12;
+  const trees = Math.round(yearly / 9.1);
+
+  document.getElementById('res-name').textContent = v('name') + '님의 탄소발자국';
+  document.getElementById('res-month').textContent = monthly.toLocaleString();
+  document.getElementById('res-year').textContent = yearly.toLocaleString();
+  document.getElementById('res-tree').textContent = trees.toLocaleString();
+
+  const items = [
+    { name:'쓰레기', val: r_trash }, { name:'가스', val: r_gas }, { name:'전기', val: r_elec }, { name:'수도', val: r_water },
+    { name:'교통', val: r_transport }, { name:'커피·차', val: r_coffee }, { name:'식품', val: r_food }, { name:'전자기기', val: r_device }
+  ];
+  const maxVal = Math.max(...items.map(x => x.val), 1);
+  document.getElementById('breakdown').innerHTML = items.map(x => `
+    <div class="breakdown-item">
+      <span class="bd-name">${x.name}</span>
+      <div class="bd-bar-wrap"><div class="bd-bar" style="width:${Math.round(x.val/maxVal*100)}%"></div></div>
+      <span class="bd-val">${x.val.toFixed(1)} kg</span>
+    </div>
+  `).join('');
+
+  showStep(11);
+  showTierCard(monthly);
+
+  saveResult({
+    version: '기본', name: v('name'), studentId: v('studentId'), family: fam,
+    trash: r_trash, gas: r_gas, elec: r_elec, water: r_water,
+    transport: r_transport, coffee: r_coffee, food: r_food, device: r_device,
+    monthly, yearly, trees
+  });
+}
+
+function resetCalc() {
+  dishMode = ''; commuteMode = ''; weekendMode = ''; coffeeMode = ''; foodWasteMode = '';
+  document.querySelectorAll('.radio-card').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('input[type="number"]').forEach(el => el.value = '');
+  document.querySelectorAll('input[type="text"]').forEach(el => el.value = '');
+  document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
+  document.getElementById('family').value = 4;
+  document.getElementById('commute-dist-field').style.display = 'none';
+  document.getElementById('weekend-dist-field').style.display = 'none';
+  
+  // 👇 다시 계산할 때 캐릭터 박스를 숨김 👇
+  document.getElementById('character-box').style.display = 'none';
+  document.getElementById('retrySave').style.display = 'none';
+  
+  showStep(1);
+}
+
+showStep(1);
+</script>
+</body>
+</html>
